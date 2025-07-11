@@ -1,0 +1,20 @@
+You are building a multi-domain recommendation system (Books, Music, Movies) using collaborative filtering, and possibly content-based filtering later.
+
+
+# 🧠 Cursor Assistant Development Rules
+
+This project is a multi-domain recommendation system using collaborative filtering and matrix factorization.
+
+## ✅ Project Rules for Cursor AI
+- Each domain (books, music, movies) has its own model script under `models/collaborative_filtering/`
+- Start with **item-based collaborative filtering**, then build **matrix factorization (SVD)** models.
+- Avoid hardcoded paths. Use relative paths or config constants.
+- Use the following function naming conventions:
+  - `load_data()` for loading
+  - `build_user_item_matrix()` for pivoting ratings
+  - `compute_similarity()` for cosine similarity or correlation
+- Save all computed matrices (`.csv` or `.npy`) under `data/processed/`
+- Evaluate models using `scripts/evaluate_models.py`
+- Use only pandas, numpy, scikit-learn — no surprise libraries unless configured in `requirements.txt`
+- Always separate data preparation into `scripts/prepare_data.py`
+- Functions should be reusable and testable — avoid logic inside `main()`
