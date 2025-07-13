@@ -43,8 +43,21 @@ def recommend_artists(user_id, user_item_matrix, similarity_df, artist_info_df, 
     print(f"🎧 Recommending artists for user {user_id}...")
     user_ratings = user_item_matrix.loc[user_id].dropna()
     scores = {}
-
+    
     for item, rating in user_ratings.items():
+        if item not in similarity_df.columns:
+            print(f"⚠️ Item {item} not found in similarity matrix, skipping...")
+            continue
+            
+        print(f"Processing item {item} with rating {rating}")
+        
+        # Get similar items, but only drop labels that exist in the similarity matrix
+        similar_items = similarity_df[item]
+        
+        # Filter out items that the user has already rated (only if they exist in similarity matrix)
+        user_rated_items = set(user_ratings.index) & set(similar_items.index)
+        if user_rated_items:
+            similar_items = similar_items.drop(labels=list(user_rated_items))
         similar_items = similarity_df[item].drop(labels=user_ratings.index, errors='ignore')
         for similar_item, similarity in similar_items.items():
             scores[similar_item] = scores.get(similar_item, 0) + similarity * rating
