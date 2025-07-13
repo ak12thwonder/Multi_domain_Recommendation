@@ -3,8 +3,8 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.metrics.pairwise import cosine_similarity
 
 def load_data():
-    ratings = pd.read_csv("../../data/processed/music/music_rating.csv")
-    music_info = pd.read_csv("../../data/processed/music/music_info.csv")
+    ratings = pd.read_csv("data/processed/music/music_rating.csv")
+    music_info = pd.read_csv("data/processed/music/music_info.csv")
     return ratings, music_info
 
 def build_user_item_matrix(ratings_df):
@@ -67,6 +67,15 @@ def recommend_artists(user_id, user_item_matrix, music_info_df, svd_matrix, top_
     )
 
     return music_info_df[music_info_df['id'].isin(top_recommendations.index)][['id', 'name']].drop_duplicates()
+
+def recommend_music_svd(user_id, top_n=5):
+    ratings_df, music_df = load_data()
+    user_item_matrix = build_user_item_matrix(ratings_df)
+    svd_matrix, svd_model = apply_svd(user_item_matrix, n_components=50)
+    return recommend_artists(user_id, user_item_matrix, music_df, svd_matrix, top_n)
+
+
+
 
 def main():
     ratings_df, music_info_df = load_data()

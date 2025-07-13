@@ -69,6 +69,11 @@ def fetch_combined_stats():
         return 0, 0, 0
 
 
+import sys
+import os
+
+# Add project root to sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Load stats for each domain + combined
 def load_stats():

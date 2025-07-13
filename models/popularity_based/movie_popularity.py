@@ -2,8 +2,8 @@ import pandas as pd
 
 def load_data():
     print("📥 Loading movie rating and info data...")
-    ratings_df = pd.read_csv("../../data/processed/movie/movie_rating.csv")
-    movie_info_df = pd.read_csv("../../data/processed/movie/movie_info.csv")
+    ratings_df = pd.read_csv("data/processed/movie/movie_rating.csv")
+    movie_info_df = pd.read_csv("data/processed/movie/movie_info.csv")
     return ratings_df, movie_info_df
 
 def compute_popularity(ratings_df):
@@ -38,6 +38,12 @@ def get_top_movies(popularity_df, movie_info_df, top_n=10):
     top_movies = popularity_df.head(top_n)
     merged = pd.merge(top_movies, movie_info_df, left_on='item_id', right_on='movie_id')
     return merged[['movie_id', 'title', 'rating_count', 'average_rating', 'weighted_score']]
+
+def get_popular_movies(top_n=5):
+    ratings_df, movie_info_df = load_data()
+    popularity_df = compute_popularity(ratings_df)
+    return get_top_movies(popularity_df, movie_info_df, top_n)
+
 
 def main():
     ratings_df, movie_info_df = load_data()

@@ -4,8 +4,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
 def load_data():
-    ratings = pd.read_csv("../../data/processed/movie/movie_rating.csv")
-    movies = pd.read_csv("../../data/processed/movie/movie_info.csv")
+    ratings = pd.read_csv("data/processed/movie/movie_rating.csv")
+    movies = pd.read_csv("data/processed/movie/movie_info.csv")
     return ratings, movies
 
 def build_user_item_matrix(ratings_df):
@@ -57,6 +57,13 @@ def recommend_movies(user_id, user_item_matrix, movies_df, svd_matrix, top_n=5):
     )
 
     return movies_df[movies_df['movie_id'].isin(top_recommendations.index)][['movie_id', 'title']].drop_duplicates()
+
+def recommend_movies_svd(user_id, top_n=5):
+    ratings_df, movies_df = load_data()
+    user_item_matrix = build_user_item_matrix(ratings_df)
+    svd_matrix, svd_model = apply_svd(user_item_matrix, n_components=50)
+    return recommend_movies(user_id, user_item_matrix, movies_df, svd_matrix, top_n)
+
 
 def main():
     ratings_df, movies_df = load_data()

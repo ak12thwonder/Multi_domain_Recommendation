@@ -22,8 +22,8 @@ Explore **structured previews** and visualizations of your datasets:
 st.divider()
 
 # Paths
-DATA_PATH = "../data/processed"
-NOTEBOOK_PATH = "../notebooks"
+DATA_PATH = "data/processed"
+NOTEBOOK_PATH = "notebooks"
 
 # Select domain
 domain = st.selectbox("📂 Select Domain", ["Books", "Movies", "Music", "Combined"])

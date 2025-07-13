@@ -78,8 +78,8 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.metrics.pairwise import cosine_similarity
 
 def load_data():
-    ratings = pd.read_csv("../../data/processed/book/book_filtered_rating.csv")
-    books = pd.read_csv("../../data/processed/book/book_info.csv")
+    ratings = pd.read_csv("data/processed/book/book_filtered_rating.csv")
+    books = pd.read_csv("data/processed/book/book_info.csv")
     return ratings, books
 
 def build_user_item_matrix(ratings_df):
@@ -139,6 +139,13 @@ def recommend_books(user_id, user_item_matrix, books_df, svd_matrix, top_n=5):
     )
 
     return books_df[books_df['book_id'].isin(top_recommendations.index)][['book_id', 'Title']].drop_duplicates()
+
+def recommend_books_svd(user_id, top_n=5):
+    ratings_df, books_df = load_data()
+    user_item_matrix = build_user_item_matrix(ratings_df)
+    svd_matrix, svd_model = apply_svd(user_item_matrix, n_components=50)
+    return recommend_books(user_id, user_item_matrix, books_df, svd_matrix, top_n)
+
 
 def main():
     ratings_df, books_df = load_data()

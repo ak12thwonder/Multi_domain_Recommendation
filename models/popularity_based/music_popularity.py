@@ -2,8 +2,8 @@ import pandas as pd
 
 def load_data():
     print("📥 Loading music rating and artist info data...")
-    ratings_df = pd.read_csv("../../data/processed/music/music_rating.csv")
-    artist_info_df = pd.read_csv("../../data/processed/music/music_info.csv")
+    ratings_df = pd.read_csv("data/processed/music/music_rating.csv")
+    artist_info_df = pd.read_csv("data/processed/music/music_info.csv")
     return ratings_df, artist_info_df
 
 def compute_popularity(ratings_df):
@@ -32,6 +32,12 @@ def get_top_artists(popularity_df, artist_info_df, top_n=10):
     top_artists = popularity_df.head(top_n)
     merged = pd.merge(top_artists, artist_info_df, left_on='artist_id', right_on='id')
     return merged[['id', 'name', 'rating_count', 'average_rating', 'weighted_score']]
+
+def get_popular_music(top_n=5):
+    ratings_df, music_info_df = load_data()
+    popularity_df = compute_popularity(ratings_df)
+    return get_top_artists(popularity_df, music_info_df, top_n)
+
 
 def main():
     ratings_df, artist_info_df = load_data()

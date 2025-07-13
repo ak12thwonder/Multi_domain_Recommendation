@@ -2,8 +2,8 @@ import pandas as pd
 
 def load_data():
     print("📥 Loading book rating and info data...")
-    ratings_df = pd.read_csv("../../data/processed/book/book_filtered_rating.csv")
-    book_info_df = pd.read_csv("../../data/processed/book/book_info.csv")
+    ratings_df = pd.read_csv("data/processed/book/book_filtered_rating.csv")
+    book_info_df = pd.read_csv("data/processed/book/book_info.csv")
     return ratings_df, book_info_df
 
 def compute_popularity(ratings_df):
@@ -27,11 +27,16 @@ def compute_popularity(ratings_df):
 
     return popularity_df.sort_values(by='weighted_score', ascending=False)
 
-def get_top_books(popularity_df, book_info_df, top_n=10):
+def get_top_books(popularity_df, book_info_df, top_n=5):
     print(f"📚 Fetching top {top_n} popular books...")
     top_books = popularity_df.head(top_n)
     merged = pd.merge(top_books, book_info_df, on='book_id')
     return merged[['book_id', 'Title', 'rating_count', 'average_rating', 'weighted_score']]
+def get_popular_books(top_n=5):
+    ratings_df, book_info_df = load_data()
+    popularity_df = compute_popularity(ratings_df)
+    return get_top_books(popularity_df, book_info_df, top_n)
+
 
 def main():
     ratings_df, book_info_df = load_data()
