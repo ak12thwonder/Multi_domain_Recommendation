@@ -24,6 +24,9 @@ def evaluate_movie_cf():
 
     hits = 0
     total_users = 0
+    print(test.describe())
+
+
     for _, row in test.iterrows():
         user_id = row['user_id']
         actual_movie = row['item_id']

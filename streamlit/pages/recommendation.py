@@ -110,6 +110,26 @@ def load_music_data():
     return user_item_matrix, similarity_df, music_info_df
 
 
+# --- USERNAME SELECTION LOGIC ---
+# Load user files with usernames for each domain
+book_user_df = pd.read_csv(r'data\processed\book\book_user_with_names.csv')
+movie_user_df = pd.read_csv(r'data\processed\movie\movie_user_with_names.csv')
+music_user_df = pd.read_csv(r'data\processed\movie\movie_user_with_names.csv')
+
+# Get the set of all usernames (assuming usernames are unique across all domains)
+all_usernames = set(book_user_df['username']).union(movie_user_df['username']).union(music_user_df['username'])
+
+username = st.selectbox("👤 Select Username", sorted(all_usernames))
+
+# Find user_id for each domain (if username exists in that domain)
+book_user_id = book_user_df[book_user_df['username'] == username]['user_id'].iloc[0] if username in book_user_df['username'].values else None
+movie_user_id = movie_user_df[movie_user_df['username'] == username]['user_id'].iloc[0] if username in movie_user_df['username'].values else None
+music_user_id = music_user_df[music_user_df['username'] == username]['user_id'].iloc[0] if username in music_user_df['username'].values else None
+
+# --- OLD USER ID INPUT (commented out) ---
+# user_id = st.number_input("🔢 Enter User ID", min_value=1, step=1)
+
+
 st.divider()
 
 # Dropdown for algorithm type
@@ -119,71 +139,54 @@ algorithm = st.selectbox("🤖 Select Recommendation Algorithm", [
     "Popularity Based"
 ])
 
-user_id = st.number_input("🔢 Enter User ID", min_value=1, step=1)
 
 if st.button("🎯 Get Recommendations"):
     if algorithm == "Collaborative Filtering":
         st.subheader("📚 Book Recommendations (Collaborative Filtering)")
         try:
             book_matrix, book_sim, book_info = load_book_data()
-            st.dataframe(book_cf(user_id, book_matrix, book_sim, book_info), use_container_width=True)
+            if book_user_id is not None:
+                st.dataframe(book_cf(book_user_id, book_matrix, book_sim, book_info), use_container_width=True)
+            else:
+                st.warning("No Book user ID found for this username.")
         except Exception as e:
             st.error(f"Book CF error: {e}")
 
         st.subheader("🎬 Movie Recommendations (Collaborative Filtering)")
-
-
         movie_matrix, movie_sim, movie_info = load_movie_data()
-        # print("a")
-        # print(movie_matrix)
-        # print()
-        # print('b')
-        # print(movie_sim)
-
-        # print()
-        # print('c')
-        # print(movie_info)
-        
-        st.dataframe(movie_cf(user_id, movie_matrix, movie_sim, movie_info), use_container_width=True)
-        # try:
-        #     movie_matrix, movie_sim, movie_info = load_movie_data()
-        #     print("a")
-        #     print(movie_matrix)
-        #     print()
-        #     print('b')
-        #     print(movie_sim)
-
-        #     print()
-        #     print('c')
-        #     print(movie_info)
-        #     st.dataframe(movie_cf(user_id, movie_matrix, movie_sim, movie_info), use_container_width=True)
-
-        # except Exception as e:
-        #     st.error(f"Movie CF error: {e}")
+        if movie_user_id is not None:
+            st.dataframe(movie_cf(movie_user_id, movie_matrix, movie_sim, movie_info), use_container_width=True)
+        else:
+            st.warning("No Movie user ID found for this username.")
 
         st.subheader("🎵 Music Recommendations (Collaborative Filtering)")
         music_matrix, music_sim, music_info = load_music_data()
-        st.dataframe(music_cf(user_id, music_matrix, music_sim, music_info), use_container_width=True)
-
+        if music_user_id is not None:
+            st.dataframe(music_cf(music_user_id, music_matrix, music_sim, music_info), use_container_width=True)
+        else:
+            st.warning("No Music user ID found for this username.")
 
     elif algorithm == "Matrix Factorization (SVD)":
         st.subheader("📚 Book Recommendations (SVD)")
-        st.dataframe(book_svd(user_id), use_container_width=True)
-        # try:
-        # except Exception as e:
-        #     st.error(f"Book SVD error: {e}")
+        if book_user_id is not None:
+            st.dataframe(book_svd(book_user_id), use_container_width=True)
+        else:
+            st.warning("No Book user ID found for this username.")
 
         st.subheader("🎬 Movie Recommendations (SVD)")
-        st.dataframe(movie_svd(user_id), use_container_width=True)
-        # try:
-        # except Exception as e:
-        #     st.error(f"Movie SVD error: {e}")
+        if movie_user_id is not None:
+            st.dataframe(movie_svd(movie_user_id), use_container_width=True)
+        else:
+            st.warning("No Movie user ID found for this username.")
 
         st.subheader("🎵 Music Recommendations (SVD)")
-        try:
-            st.dataframe(music_svd(user_id), use_container_width=True)
-        except Exception as e:
-            st.error(f"Music SVD error: {e}")
+        if music_user_id is not None:
+            try:
+                st.dataframe(music_svd(music_user_id), use_container_width=True)
+            except Exception as e:
+                st.error(f"Music SVD error: {e}")
+        else:
+            st.warning("No Music user ID found for this username.")
 
     elif algorithm == "Popularity Based":
         st.subheader("📚 Top Books (Popularity)")

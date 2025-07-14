@@ -1,8 +1,13 @@
 # streamlit_app/Home.py
 
+import sys
+import os
 import streamlit as st
 import pandas as pd
 import psycopg2
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 st.set_page_config(page_title="Multi-Domain Recommendation Dashboard", page_icon="📚", layout="wide")
 
 st.title("📚 Multi-Domain Recommendation System")
@@ -69,8 +74,6 @@ def fetch_combined_stats():
         return 0, 0, 0
 
 
-import sys
-import os
 
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
