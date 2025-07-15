@@ -1,5 +1,5 @@
 # streamlit/pages/3_📌_recommendation.py
-
+import os
 import streamlit as st
 import pandas as pd
 
@@ -27,6 +27,11 @@ from models.popularity_based.music_popularity import get_popular_music
 
 st.set_page_config(page_title="Recommendations", page_icon="📌", layout="wide")
 st.title("📌 Multi-Domain Recommendations")
+
+# Show main area success message if just registered (must be at the very top)
+if st.session_state.get('user_just_registered'):
+    st.success(f"User '{st.session_state['user_just_registered']}' has been registered successfully!")
+    st.session_state['user_just_registered'] = None
 
 st.markdown("""
 Select a recommendation algorithm and provide a user ID to get suggestions for:
@@ -114,11 +119,72 @@ def load_music_data():
 # Load user files with usernames for each domain
 book_user_df = pd.read_csv(r'data\processed\book\book_user_with_names.csv')
 movie_user_df = pd.read_csv(r'data\processed\movie\movie_user_with_names.csv')
-music_user_df = pd.read_csv(r'data\processed\movie\movie_user_with_names.csv')
+music_user_df = pd.read_csv(r'data\processed\music\music_rating_with_names.csv')
 
 # Get the set of all usernames (assuming usernames are unique across all domains)
 all_usernames = set(book_user_df['username']).union(movie_user_df['username']).union(music_user_df['username'])
 
+# --- New User Registration UI at the top ---
+# st.sidebar.header('🆕 RFas
+
+if 'new_user_registered' not in st.session_state:
+    st.session_state['new_user_registered'] = False
+# Registration button
+st.sidebar.header('🆕 Register New User')
+with st.sidebar.form("new_user_form", clear_on_submit=True):
+    st.subheader("👤 Enter Your Details")
+    username = st.text_input("Username")
+    age = st.number_input("Age", min_value=1, max_value=120, value=25)
+    gender = st.selectbox("Gender", ["M", "F", "Other"])
+    occupation = st.text_input("Occupation", value="Other")
+    submitted = st.form_submit_button("Submit")
+
+    if submitted:
+        new_users_path = 'data/processed/new_users.csv'
+        # Load or initialize users file
+        if os.path.exists(new_users_path):
+            existing_users_df = pd.read_csv(new_users_path)
+            all_usernames = set(existing_users_df['username'])
+        else:
+            existing_users_df = pd.DataFrame(columns=['user_id', 'username', 'age', 'gender', 'occupation'])
+            all_usernames = set()
+        # Validate uniqueness
+        if username in all_usernames:
+            st.warning(f"Username '{username}' already exists. Please choose a different one.")
+        else:
+            # Generate numeric user_id starting from 1000233
+            if not existing_users_df.empty:
+                # Only consider numeric user_ids
+                numeric_ids = pd.to_numeric(existing_users_df['user_id'], errors='coerce')
+                numeric_ids = numeric_ids.dropna().astype(int)
+                next_id = numeric_ids.max() + 1 if not numeric_ids.empty else 1000233
+            else:
+                next_id = 1000231
+            new_user_id = next_id  # Always an integer
+            new_user_row = {
+                'user_id': new_user_id,
+                'username': username,
+                'age': age,
+                'gender': gender,
+                'occupation': occupation
+            }
+            new_user_df = pd.DataFrame([new_user_row])[['user_id', 'username', 'age', 'gender', 'occupation']]
+            new_user_df.to_csv(new_users_path, mode='a', header=not os.path.exists(new_users_path), index=False)
+            st.success(f"🎉 User '{username}' registered successfully!")
+            # Show popularity-based suggestions
+            st.subheader('📚 Top Books (Popularity)')
+            st.dataframe(get_popular_books(), use_container_width=True)
+            st.subheader('🎬 Top Movies (Popularity)')
+            st.dataframe(get_popular_movies(), use_container_width=True)
+            st.subheader('🎵 Top Music (Popularity)')
+            st.dataframe(get_popular_music(), use_container_width=True)
+# Show main area success message if just registered
+if st.session_state.get('user_just_registered'):
+    st.success(f"User '{st.session_state['user_just_registered']}' has been registered successfully!")
+    # Optionally clear the flag after showing the message
+    st.session_state['user_just_registered'] = None
+
+# --- Username selection dropdown (only after registration UI) ---
 username = st.selectbox("👤 Select Username", sorted(all_usernames))
 
 # Find user_id for each domain (if username exists in that domain)
@@ -146,7 +212,13 @@ if st.button("🎯 Get Recommendations"):
         try:
             book_matrix, book_sim, book_info = load_book_data()
             if book_user_id is not None:
-                st.dataframe(book_cf(book_user_id, book_matrix, book_sim, book_info), use_container_width=True)
+                book_recs = book_cf(book_user_id, book_matrix, book_sim, book_info)
+                if book_recs.empty or 'title' not in book_recs.columns:
+                    st.info('No book recommendations available.')
+                else:
+                    book_recs = book_recs[['title']].reset_index(drop=True)
+                    book_recs.index += 1
+                    st.dataframe(book_recs)
             else:
                 st.warning("No Book user ID found for this username.")
         except Exception as e:
@@ -155,34 +227,67 @@ if st.button("🎯 Get Recommendations"):
         st.subheader("🎬 Movie Recommendations (Collaborative Filtering)")
         movie_matrix, movie_sim, movie_info = load_movie_data()
         if movie_user_id is not None:
-            st.dataframe(movie_cf(movie_user_id, movie_matrix, movie_sim, movie_info), use_container_width=True)
+            movie_recs = movie_cf(movie_user_id, movie_matrix, movie_sim, movie_info)
+            if movie_recs.empty or 'title' not in movie_recs.columns:
+                st.info('No movie recommendations available.')
+            else:
+                movie_recs = movie_recs[['title']].reset_index(drop=True)
+                movie_recs.index += 1
+                st.dataframe(movie_recs)
         else:
             st.warning("No Movie user ID found for this username.")
 
         st.subheader("🎵 Music Recommendations (Collaborative Filtering)")
         music_matrix, music_sim, music_info = load_music_data()
         if music_user_id is not None:
-            st.dataframe(music_cf(music_user_id, music_matrix, music_sim, music_info), use_container_width=True)
+            music_recs = music_cf(music_user_id, music_matrix, music_sim, music_info)
+            if music_recs.empty or 'name' not in music_recs.columns:
+                st.info('No music recommendations available.')
+            else:
+                music_recs = music_recs[['name']].reset_index(drop=True)
+                music_recs.index += 1
+                st.dataframe(music_recs)
         else:
             st.warning("No Music user ID found for this username.")
 
     elif algorithm == "Matrix Factorization (SVD)":
         st.subheader("📚 Book Recommendations (SVD)")
         if book_user_id is not None:
-            st.dataframe(book_svd(book_user_id), use_container_width=True)
+            book_svd_recs = book_svd(book_user_id)
+            required_cols = ['title', 'rating_count', 'average_rating']
+            if book_svd_recs.empty or not all(col in book_svd_recs.columns for col in required_cols):
+                st.info('No book recommendations available.')
+            else:
+                display_df = book_svd_recs[required_cols].reset_index(drop=True)
+                display_df.index += 1
+                st.dataframe(display_df)
         else:
             st.warning("No Book user ID found for this username.")
 
         st.subheader("🎬 Movie Recommendations (SVD)")
         if movie_user_id is not None:
-            st.dataframe(movie_svd(movie_user_id), use_container_width=True)
+            movie_svd_recs = movie_svd(movie_user_id)
+            required_cols = ['title', 'rating_count', 'average_rating']
+            if movie_svd_recs.empty or not all(col in movie_svd_recs.columns for col in required_cols):
+                st.info('No movie recommendations available.')
+            else:
+                display_df = movie_svd_recs[required_cols].reset_index(drop=True)
+                display_df.index += 1
+                st.dataframe(display_df)
         else:
             st.warning("No Movie user ID found for this username.")
 
         st.subheader("🎵 Music Recommendations (SVD)")
         if music_user_id is not None:
             try:
-                st.dataframe(music_svd(music_user_id), use_container_width=True)
+                music_svd_recs = music_svd(music_user_id)
+                required_cols = ['name', 'rating_count', 'average_rating']
+                if music_svd_recs.empty or not all(col in music_svd_recs.columns for col in required_cols):
+                    st.info('No music recommendations available.')
+                else:
+                    display_df = music_svd_recs[['name', 'rating_count', 'average_rating']].reset_index(drop=True)
+                    display_df.index += 1
+                    st.dataframe(display_df)
             except Exception as e:
                 st.error(f"Music SVD error: {e}")
         else:
@@ -191,18 +296,54 @@ if st.button("🎯 Get Recommendations"):
     elif algorithm == "Popularity Based":
         st.subheader("📚 Top Books (Popularity)")
         try:
-            st.dataframe(get_popular_books(), use_container_width=True)
+            book_pop = get_popular_books()
+            required_cols = ['title', 'rating_count', 'average_rating']
+            if book_pop.empty or not all(col in book_pop.columns for col in required_cols):
+                st.info('No popular books available.')
+            else:
+                display_df = book_pop[required_cols].reset_index(drop=True)
+                display_df.index += 1
+                st.dataframe(display_df)
         except Exception as e:
             st.error(f"Popular Book error: {e}")
 
         st.subheader("🎬 Top Movies (Popularity)")
         try:
-            st.dataframe(get_popular_movies(), use_container_width=True)
+            movie_pop = get_popular_movies()
+            required_cols = ['title', 'rating_count', 'average_rating']
+            if movie_pop.empty or not all(col in movie_pop.columns for col in required_cols):
+                st.info('No popular movies available.')
+            else:
+                display_df = movie_pop[required_cols].reset_index(drop=True)
+                display_df.index += 1
+                st.dataframe(display_df)
         except Exception as e:
             st.error(f"Popular Movie error: {e}")
 
         st.subheader("🎵 Top Music (Popularity)")
         try:
-            st.dataframe(get_popular_music(), use_container_width=True)
+            music_pop = get_popular_music()
+            required_cols = ['name', 'rating_count', 'average_rating']
+            if music_pop.empty or not all(col in music_pop.columns for col in required_cols):
+                st.info('No popular music available.')
+            else:
+                display_df = music_pop[['name', 'rating_count', 'average_rating']].reset_index(drop=True)
+                display_df.index += 1
+                st.dataframe(display_df)
         except Exception as e:
             st.error(f"Popular Music error: {e}")
+
+# --- Additional Button: Save to Database ---
+def save_new_users_to_db():
+    from database.new_items import insert_new_users
+    import os
+    print("Current working directory:", os.getcwd())
+    df = pd.read_csv(os.path.join("data", "processed", "new_users.csv"))
+    insert_new_users(df)
+    st.success('New users saved to the database!')
+    # try:
+    # except Exception as e:
+    #     st.error(f'Error saving to database: {e}')
+
+if st.sidebar.button('Save to Database'):
+    save_new_users_to_db()
