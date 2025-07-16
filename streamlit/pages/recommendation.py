@@ -24,9 +24,20 @@ from models.popularity_based.book_popularity import get_popular_books
 from models.popularity_based.movie_popularity import get_popular_movies
 from models.popularity_based.music_popularity import get_popular_music
 
+import psycopg2
+from dotenv import load_dotenv
+
 
 st.set_page_config(page_title="Recommendations", page_icon="📌", layout="wide")
 st.title("📌 Multi-Domain Recommendations")
+
+load_dotenv()
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT")
+DB_NAME = os.getenv("DB_NAME")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+
 
 # Show main area success message if just registered (must be at the very top)
 if st.session_state.get('user_just_registered'):
@@ -173,11 +184,29 @@ with st.sidebar.form("new_user_form", clear_on_submit=True):
             st.success(f"🎉 User '{username}' registered successfully!")
             # Show popularity-based suggestions
             st.subheader('📚 Top Books (Popularity)')
-            st.dataframe(get_popular_books(), use_container_width=True)
+            book_pop = get_popular_books()
+            if not book_pop.empty and 'title' in book_pop.columns:
+                display_df = book_pop[['title']].reset_index(drop=True)
+                display_df.index = display_df.index + 1
+                st.dataframe(display_df, use_container_width=True)
+            # else:
+                # st.info('No popular books available.')
             st.subheader('🎬 Top Movies (Popularity)')
-            st.dataframe(get_popular_movies(), use_container_width=True)
+            movie_pop = get_popular_movies()
+            if not movie_pop.empty and 'title' in movie_pop.columns:
+                display_df = movie_pop[['title']].reset_index(drop=True)
+                display_df.index = display_df.index + 1
+                st.dataframe(display_df, use_container_width=True)
+            else:
+                st.info('No popular movies available.')
             st.subheader('🎵 Top Music (Popularity)')
-            st.dataframe(get_popular_music(), use_container_width=True)
+            music_pop = get_popular_music()
+            if not music_pop.empty and 'name' in music_pop.columns:
+                display_df = music_pop[['name']].reset_index(drop=True)
+                display_df.index = display_df.index + 1
+                st.dataframe(display_df, use_container_width=True)
+            else:
+                st.info('No popular music available.')
 # Show main area success message if just registered
 if st.session_state.get('user_just_registered'):
     st.success(f"User '{st.session_state['user_just_registered']}' has been registered successfully!")
@@ -335,11 +364,12 @@ if st.button("🎯 Get Recommendations"):
 
 # --- Additional Button: Save to Database ---
 def save_new_users_to_db():
-    from database.new_items import insert_new_users
+    # from database.new_items import insert_new_users
+    from database.new_items import insert_new_user_profile
     import os
     print("Current working directory:", os.getcwd())
     df = pd.read_csv(os.path.join("data", "processed", "new_users.csv"))
-    insert_new_users(df)
+    insert_new_user_profile(df)
     st.success('New users saved to the database!')
     # try:
     # except Exception as e:
@@ -347,3 +377,69 @@ def save_new_users_to_db():
 
 if st.sidebar.button('Save to Database'):
     save_new_users_to_db()
+
+
+def soft_delete_user(user_id):
+    conn = psycopg2.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASSWORD
+    )
+    cur = conn.cursor()
+    cur.execute("UPDATE user_profile SET active_user = 0 WHERE user_id = %s", (user_id,))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+# Example: Load users from the database (only active users)
+import psycopg2.extras
+
+def get_active_users():
+    conn = psycopg2.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASSWORD
+    )
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    cur.execute("SELECT user_id, username FROM user_profile WHERE active_user = 1")
+    users = cur.fetchall()
+    cur.close()
+    conn.close()
+    return pd.DataFrame(users)
+
+users_df = get_active_users()
+
+import streamlit as st
+
+username_to_delete = st.text_input("Enter Username to delete (soft delete):")
+
+if st.button("Delete User"):
+    if username_to_delete:
+        try:
+            # Look up user_id by username
+            conn = psycopg2.connect(
+                host=DB_HOST,
+                port=DB_PORT,
+                dbname=DB_NAME,
+                user=DB_USER,
+                password=DB_PASSWORD
+            )
+            cur = conn.cursor()
+            cur.execute("SELECT user_id FROM user_profile WHERE username = %s", (username_to_delete,))
+            result = cur.fetchone()
+            cur.close()
+            conn.close()
+            if result:
+                user_id = result[0]
+                soft_delete_user(user_id)
+                st.success(f"User '{username_to_delete}' deleted (soft delete)!")
+            else:
+                st.warning(f"No user found with username '{username_to_delete}'.")
+        except Exception as e:
+            st.error(f"Error deleting user: {e}")
+    else:
+        st.warning("Please enter a User ID.")

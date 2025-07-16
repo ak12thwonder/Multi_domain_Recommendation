@@ -94,10 +94,52 @@ def insert_new_users(data=None):
         cur.close()
 
 
+def insert_new_user_profile(data=None):
+    print("🎬 Inserting new user(s) into user_profile...")
+    if data is None:
+        df = pd.read_csv(os.path.join("data", "processed", "new_users.csv"))
+    else:
+        df = data
+
+    # Use DB_PARAMS for connection (already loaded from .env)
+    conn = psycopg2.connect(**DB_PARAMS)
+    cur = conn.cursor()
+    try:
+        for _, row in df.iterrows():
+            cur.execute("""
+                INSERT INTO user_profile (user_id, username, age, gender, occupation, from_movies, from_book, from_music, active_user)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (user_id) DO UPDATE SET
+                    username = EXCLUDED.username,
+                    age = EXCLUDED.age,
+                    gender = EXCLUDED.gender,
+                    occupation = EXCLUDED.occupation,
+                    from_movies = EXCLUDED.from_movies,
+                    from_book = EXCLUDED.from_book,
+                    from_music = EXCLUDED.from_music,
+                    active_user = EXCLUDED.active_user;
+            """, (
+                int(row["user_id"]),
+                row.get("username"),
+                int(row["age"]) if pd.notnull(row["age"]) else None,
+                row.get("gender"),
+                row.get("occupation"),
+                0,  # from_movies
+                0,  # from_book
+                0,  # from_music
+                1   # active_user
+            ))
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
+
+
 # === Run All ===
 if __name__ == "__main__":
     create_users_table()
     insert_new_users()
+    insert_new_user_profile()
     # insert_movie_users()
     # insert_book_users()
     # insert_music_users()
