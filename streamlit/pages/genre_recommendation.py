@@ -63,3 +63,87 @@ if clicked:
         st.info("No recommendations available for this category.")
     else:
         st.dataframe(recs) 
+
+# Example user data
+user_df = pd.read_csv("data/processed/book/book_user_with_names.csv")  # or movie/music user file
+
+age_groups = [
+    ("16-20", (16, 20)),
+    ("21-30", (21, 30)),
+    ("31-40", (31, 40)),
+    ("41-50", (41, 50)),
+    ("50+", (51, 200)),
+]
+
+st.subheader("Browse by Age Group")
+age_group_labels = [label for label, _ in age_groups]
+cols = st.columns(len(age_group_labels))
+
+selected_age_group = None
+for i, (label, _) in enumerate(age_groups):
+    if cols[i].button(label):
+        selected_age_group = label
+
+if selected_age_group:
+    min_age, max_age = dict(age_groups)[selected_age_group]
+    filtered_users = user_df[(user_df['age'] >= min_age) & (user_df['age'] <= max_age)]
+    user_ids = filtered_users['user_id'].unique()
+
+    # Load movie ratings and info
+    movie_ratings = pd.read_csv("data/processed/movie/movie_rating.csv")
+    movie_info = pd.read_csv("data/processed/movie/movie_info.csv")
+
+    # Filter ratings for users in this age group
+    group_ratings = movie_ratings[movie_ratings['user_id'].isin(user_ids)]
+
+    # Get top 5 most rated movies (or you can use average rating, etc.)
+    top_movies = (
+        group_ratings.groupby('item_id')
+        .size()
+        .sort_values(ascending=False)
+        .head(5)
+        .index
+    )
+
+    # Get movie titles (use the correct ID column)
+    top_movie_titles = movie_info[movie_info['movie_id'].isin(top_movies)][['title']].drop_duplicates().reset_index(drop=True)
+    top_movie_titles.index = top_movie_titles.index + 1  # Start index from 1
+
+    st.subheader(f"Top 5 Movies for Age Group {selected_age_group}")
+    st.dataframe(top_movie_titles)
+
+st.subheader("Browse by Gender")
+gender_cols = st.columns(2)
+selected_gender = None
+if gender_cols[0].button("Male"):
+    selected_gender = "M"
+if gender_cols[1].button("Female"):
+    selected_gender = "F"
+
+if selected_gender:
+    # Filter users by gender
+    filtered_users = user_df[user_df['gender'] == selected_gender]
+    user_ids = filtered_users['user_id'].unique()
+
+    # Load movie ratings and info
+    movie_ratings = pd.read_csv("data/processed/movie/movie_rating.csv")
+    movie_info = pd.read_csv("data/processed/movie/movie_info.csv")
+
+    # Filter ratings for users of this gender
+    group_ratings = movie_ratings[movie_ratings['user_id'].isin(user_ids)]
+
+    # Get top 5 most rated movies
+    top_movies = (
+        group_ratings.groupby('item_id')
+        .size()
+        .sort_values(ascending=False)
+        .head(5)
+        .index
+    )
+
+    # Get movie titles
+    top_movie_titles = movie_info[movie_info['movie_id'].isin(top_movies)][['title']].drop_duplicates().reset_index(drop=True)
+    top_movie_titles.index = top_movie_titles.index + 1  # Start index from 1
+
+    st.subheader(f"Top 5 Movies for {'Male' if selected_gender == 'M' else 'Female'} Users")
+    st.dataframe(top_movie_titles)

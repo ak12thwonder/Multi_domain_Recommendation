@@ -1,5 +1,6 @@
 import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
+import os
 
 
 def load_data():
@@ -68,6 +69,33 @@ def recommend_artists(user_id, user_item_matrix, similarity_df, artist_info_df, 
     # Join with artist info
     recommended_artists = artist_info_df[artist_info_df['id'].isin(recommended_ids)][['id', 'name']].drop_duplicates()
     return recommended_artists
+
+
+def load_music_data():
+    """
+    Loads the filtered music ratings, artist info, user-item matrix, and item similarity matrix.
+    Returns:
+        user_item_matrix (pd.DataFrame)
+        similarity_df (pd.DataFrame)
+        artist_info_df (pd.DataFrame)
+    """
+    filtered_df = pd.read_csv("data/processed/music/music_rating.csv")
+    artist_info_df = pd.read_csv("data/processed/music/music_info.csv")
+    user_item_matrix = filtered_df.pivot_table(index='user_id', columns='artist_id', values='weight')
+
+    similarity_path = "models/colaborative_filtering/music_item_similarity_matrix.csv"
+    if os.path.exists(similarity_path):
+        similarity_df = pd.read_csv(similarity_path, index_col=0)
+        similarity_df.columns = similarity_df.columns.astype(int)
+        similarity_df.index = similarity_df.index.astype(int)
+    else:
+        from sklearn.metrics.pairwise import cosine_similarity
+        item_similarity = cosine_similarity(user_item_matrix.T.fillna(0))
+        similarity_df = pd.DataFrame(item_similarity,
+                                     index=user_item_matrix.columns,
+                                     columns=user_item_matrix.columns)
+        similarity_df.to_csv(similarity_path)
+    return user_item_matrix, similarity_df, artist_info_df
 
 
 def main():

@@ -70,32 +70,28 @@ def insert_new_users(data=None):
         df = pd.read_csv(os.path.join("data", "processed", "new_users.csv"))
     else:
         df = data
-    for _, row in df.iterrows():
-        cur.execute("""
-            INSERT INTO users (user_id, age, gender, occupation, from_movies)
-            VALUES (%s, %s, %s, %s, 1)
-            ON CONFLICT (user_id) DO UPDATE
-            SET
-                age = COALESCE(users.age, EXCLUDED.age),
-                gender = COALESCE(users.gender, EXCLUDED.gender),
-                occupation = COALESCE(users.occupation, EXCLUDED.occupation),
-                from_movies = 1;
-        """, (
-            int(row["user_id"]),
-            int(row["age"]) if pd.notnull(row["age"]) else None,
-            row["gender"] if pd.notnull(row["gender"]) else None,
-            row["occupation"] if pd.notnull(row["occupation"]) else None
-        ))
-    print("✅ Movie users inserted.")
-    # Commit and close connection
+    cur = conn.cursor()
     try:
+        for _, row in df.iterrows():
+            cur.execute("""
+                INSERT INTO users (user_id, age, gender, occupation, from_movies)
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (user_id) DO UPDATE
+                SET
+                    age = COALESCE(EXCLUDED.age, users.age),
+                    gender = COALESCE(EXCLUDED.gender, users.gender),
+                    occupation = COALESCE(EXCLUDED.occupation, users.occupation),
+                    from_movies = COALESCE(EXCLUDED.from_movies, users.from_movies);
+            """, (
+                int(row["user_id"]),
+                int(row["age"]) if pd.notnull(row["age"]) else None,
+                row["gender"] if pd.notnull(row["gender"]) else None,
+                row["occupation"] if pd.notnull(row["occupation"]) else None,
+                row.get("from_movies", 0)  # default to 1 if not present
+            ))
         conn.commit()
+    finally:
         cur.close()
-        conn.close()
-        print("✅ Connection closed after insert_new_users.")
-    except Exception as e:
-        print(f"Warning: Could not close connection cleanly: {e}")
-
 
 
 # === Run All ===

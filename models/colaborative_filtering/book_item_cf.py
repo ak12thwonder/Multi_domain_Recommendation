@@ -72,6 +72,33 @@ def recommend_books(user_id, user_item_matrix, similarity_df, book_info_df, top_
     return recommended_books
 
 
+def load_book_data():
+    """
+    Loads the filtered book ratings, book info, user-item matrix, and item similarity matrix.
+    Returns:
+        user_item_matrix (pd.DataFrame)
+        similarity_df (pd.DataFrame)
+        book_info_df (pd.DataFrame)
+    """
+    filtered_df = pd.read_csv("data/processed/book/book_filtered_rating.csv")
+    book_info_df = pd.read_csv("data/processed/book/book_info.csv")
+    user_item_matrix = filtered_df.pivot_table(index='User-ID', columns='book_id', values='Rating')
+
+    similarity_path = "models/colaborative_filtering/book_item_similarity_matrix.csv"
+    if os.path.exists(similarity_path):
+        similarity_df = pd.read_csv(similarity_path, index_col=0)
+        similarity_df.columns = similarity_df.columns.astype(int)
+        similarity_df.index = similarity_df.index.astype(int)
+    else:
+        from sklearn.metrics.pairwise import cosine_similarity
+        item_similarity = cosine_similarity(user_item_matrix.T.fillna(0))
+        similarity_df = pd.DataFrame(item_similarity,
+                                     index=user_item_matrix.columns,
+                                     columns=user_item_matrix.columns)
+        similarity_df.to_csv(similarity_path)
+    return user_item_matrix, similarity_df, book_info_df
+
+
 def main():
     ratings_df, book_info_df = load_data()
     # filtered_df = filter_popular_books(ratings_df, min_count=70)
